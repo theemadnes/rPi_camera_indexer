@@ -19,7 +19,7 @@ def lambda_handler(event, context):
 
     try: 
         response = s3.get_object(Bucket=bucket, Key=object_key)
-        print(response.metadata['x-amz-meta-image_time_stamp'])
+        print(response['Metadata']['image_time_stamp'])
 
     except Exception as e:
         print(e)
