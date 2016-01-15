@@ -36,6 +36,7 @@ def start():
             image_file_data = open(image_file_name, 'rb')
             image_file_location = 'images/' + rPi_id + '/' + image_file_name
             s3_session.Bucket(s3_bucket_name).put_object(Key=image_file_location, 
+                ACL= 'public-read',
                 Body=image_file_data,
                 Metadata={
                     'image_time_stamp': image_time_stamp,

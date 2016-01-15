@@ -9,6 +9,7 @@ dynamodb_table = 'mattsona-rpi-camera_metadata' # replace with your DDB table
 # connect to dynamodb & s3
 dynamodb = boto3.resource('dynamodb')
 s3 = boto3.client('s3')
+region_name = s3.meta.region_name # need the region name for the object URL 
 
 print('Loading function')
 
@@ -33,7 +34,7 @@ def lambda_handler(event, context):
                 'device_id': response['Metadata']['rpi_id'],
                 'epoch_time': int(response['Metadata']['epoch_time_stamp']),
                 'image_time_stamp': response['Metadata']['image_time_stamp'],
-                's3_object_path': (bucket + '/' + object_key)
+                's3_object_url': ('https://s3-' + region_name + '.amazonaws.com/' + bucket + '/' + object_key)
                 }
             )
 
