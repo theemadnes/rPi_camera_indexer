@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Image Viewer</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.2.30.min.js"></script>
+    <script src='js/config.js'></script>
+</head>
+<body>
+<script  type="text/javascript">
+    AWS.config.update({accessKeyId: awsAccessKey, secretAccessKey: awsSecretKey});
+    AWS.config.region = awsRegion;  
+    var ddb = new AWS.DynamoDB(); // connect to DynamoDB
+    var time_stamp = 0; 
+    var time_interval = 600; // value in seconds to read back in the database
+    var ddb_read_params = {}; // to be populated later
+    var img_url = ""; // populated when dynamo table read
+    var img_date = ""; // populated when dynamo table read
+
+    function update_time_stamp() {
+        var timeBaseline = new Date();
+        time_stamp = parseInt(timeBaseline.setSeconds(timeBaseline.getSeconds() - time_interval) / 1000);
+    }
+
+    function set_ddb_params(time_stamp){
+
+        ddb_read_params = { 
+                    TableName: tableName,
+                    KeyConditions: {
+                        device_id: {
+                            ComparisonOperator: 'EQ',
+                            AttributeValueList: [
+                            {
+                                S: deviceId
+                            } 
+                            ]
+                        },
+                        epoch_time:   {
+                            ComparisonOperator: 'GE',
+                            AttributeValueList: [
+                            {
+                                // N: '20150805052853'
+                                N: String(time_stamp)
+                            } 
+                            ]
+                        }
+
+                    },
+                    Limit: 100,
+                    ScanIndexForward: true
+                };
+    }
+
+    function read_ddb(set_ddb_params){
+
+        update_time_stamp();
+        set_ddb_params(time_stamp);
+        console.log(ddb_read_params);
+
+        ddb.query(ddb_read_params, function(err, data) {
+            if (err) { return console.log(err); }
+
+            var highest_time = 0; 
+
+            if (data.Items.length > 0) {
+                
+                for (var i = 0; i < data.Items.length; i++)
+                {
+                    console.log("Entry data is : "+ JSON.stringify(data.Items[i])); // print the item data
+                    // read_ddb(set_ddb_params);
+                    if (data.Items[i].epoch_time.N > highest_time)
+                        {
+                            highest_time = data.Items[i].epoch_time.N;
+                            img_url = data.Items[i].s3_object_url.S;
+                            img_date = data.Items[i].image_time_stamp.S
+                        }
+        
+                }
+
+                document.getElementById("image_capture").src = img_url;
+                document.getElementById("image_description_text").innerHTML = "Latest image captured: " + img_date;
+            }
+
+            else {
+
+                document.getElementById("image_capture").src = "";
+                document.getElementById("image_description_text").innerHTML = "No recent photos.";
+            }
+
+        });
+
+    }
+
+    setInterval("read_ddb(set_ddb_params)", 1000);
+
+</script>
+
+<div class="container">
+    <div class="jumbotron">
+        <h2>rPi Camera Image Viewer</h2>
+        <p>Renders images taken by a Raspberry Pi and stored to S3.</p> 
+    </div>
+    <h4 id="image_description_text">No recent photos.</h4>          
+        <img id="image_capture" src="" class="img-rounded" alt="rPi captured image" width="640" height="480">
+</div>
+
+</body>
+</html>
